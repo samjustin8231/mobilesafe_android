@@ -24,6 +24,8 @@
             </intent-filter>
         </activity>
         <activity android:name="com.itheima.mobilesafe.activities.HomeActivity"></activity>
-    </application>
+  		<activity android:name="com.itheima.mobilesafe.activities.LostFindActivity" >
+</activity>
+        </application>
 
 </manifest>

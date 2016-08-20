@@ -10,20 +10,13 @@
         android:layout_height="40dip"
         android:background="#7766ff00"
         android:gravity="center"
-        android:text="请设置密码" />
+        android:text="请输入密码" />
 
     <EditText
         android:id="@+id/et_password"
         android:layout_width="280dip"
         android:layout_height="wrap_content"
         android:hint="请输入密码"
-        android:inputType="textPassword" />
-
-    <EditText
-        android:id="@+id/et_password_confirm"
-        android:layout_width="280dip"
-        android:layout_height="wrap_content"
-        android:hint="请再次输入密码"
         android:inputType="textPassword" />
 
     <LinearLayout
