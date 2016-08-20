@@ -1,21 +1,33 @@
 package com.itheima.mobilesafe.activities;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import net.tsz.afinal.FinalHttp;
+import net.tsz.afinal.http.AjaxCallBack;
+import net.tsz.afinal.http.HttpHandler;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
+import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources.NotFoundException;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -33,8 +45,12 @@ public class SplashActivity extends Activity {
 	protected static final int URL_ERROR = 2002;
 	protected static final int NETWORK_ERROR = 2003;
 	protected static final int JSON_ERROR = 2004;
+	protected static final int SHOW_UPDATE_DIALOG = 2005;
 	private TextView tv_splash_version;
+	private TextView tv_splash_progress;
 	private RelativeLayout rl_splash_root;
+	private String description;
+	private String path;
 	//创建一个消息处理器
 	private Handler handler = new Handler(){
 		public void handleMessage(android.os.Message msg) {
@@ -55,6 +71,9 @@ public class SplashActivity extends Activity {
 				Toast.makeText(getApplicationContext(), "获取更新信息失败，错误码："+JSON_ERROR, 1).show();
 				loadMainUI();
 				break;
+			case SHOW_UPDATE_DIALOG:
+				showUpdateDialog();
+				break;
 			}
 		};
 	};
@@ -65,6 +84,7 @@ public class SplashActivity extends Activity {
         setContentView(R.layout.activity_splash);
         tv_splash_version = (TextView) findViewById(R.id.tv_splash_version);
         rl_splash_root = (RelativeLayout) findViewById(R.id.rl_splash_root);
+        tv_splash_progress = (TextView) findViewById(R.id.tv_splash_progress);
         String version = getVersion();
         tv_splash_version.setText("版本号:"+version);
         //播放一个动画效果。
@@ -76,6 +96,72 @@ public class SplashActivity extends Activity {
     }
 
     /**
+     * 显示更新提醒对话框
+     */
+    protected void showUpdateDialog() {
+		AlertDialog.Builder  builder = new Builder(this);
+		builder.setOnCancelListener(new OnCancelListener() {
+			@Override
+			public void onCancel(DialogInterface dialog) {
+				loadMainUI();
+			}
+		});
+		builder.setTitle("更新提醒");
+		builder.setMessage(description);
+		builder.setPositiveButton("立刻升级", new OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				//判断sd卡是否存在  
+				//下载apk，替换安装。
+				 FinalHttp fh = new FinalHttp();  
+				    //调用download方法开始下载
+				    HttpHandler handler = fh.download(path, Environment.getExternalStorageDirectory().getAbsolutePath()+"/xx.apk", false, new AjaxCallBack<File>() {
+						@Override
+						public void onLoading(long count, long current) {
+							super.onLoading(count, current);
+							int progress = (int) (current*100/count);
+							tv_splash_progress.setText(("下载进度："+progress+"%"));
+						}
+
+						@Override
+						public void onSuccess(File t) {
+							super.onSuccess(t);
+							Toast.makeText(getApplicationContext(), "下载成功，替换安装", 0).show();
+//							   <action android:name="android.intent.action.VIEW" />
+//				                <category android:name="android.intent.category.DEFAULT" />
+//				                <data android:scheme="content" />
+//				                <data android:scheme="file" />
+//				                <data android:mimeType="application/vnd.android.package-archive" />
+							Intent intent = new Intent();
+							intent.setAction("android.intent.action.VIEW");
+							intent.addCategory("android.intent.category.DEFAULT");
+//							intent.setType("application/vnd.android.package-archive");
+//							intent.setData(Uri.fromFile(t));
+							intent.setDataAndType(Uri.fromFile(t), "application/vnd.android.package-archive");
+							startActivity(intent);
+						}
+
+						@Override
+						public void onFailure(Throwable t, int errorNo,
+								String strMsg) {
+							super.onFailure(t, errorNo, strMsg);
+							Toast.makeText(getApplicationContext(), "下载失败", 0).show();
+							loadMainUI();
+						}
+					});
+			}
+		});
+		builder.setNegativeButton("下次再说", new OnClickListener() {
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				loadMainUI();
+			}
+		});
+		builder.show();
+	}
+
+	/**
      * 进入主界面
      */
     protected void loadMainUI() {
@@ -91,10 +177,12 @@ public class SplashActivity extends Activity {
     private void checkVersion() {
     	new Thread(){
     		public void run() {
+    			long startTime = System.currentTimeMillis();
     			Message msg  = Message.obtain();
+    			
     			//127.0.0.1 本地回环地址。 localhost
     			try {
-					URL url = new URL(getResources().getString(R.string.serverurl)); //http: https:// ftp:// svn://
+    				URL url = new URL(getResources().getString(R.string.serverurl)); //http: https:// ftp:// svn://
 					HttpURLConnection conn =  (HttpURLConnection) url.openConnection();
 					conn.setRequestMethod("GET");//区分大小写
 					conn.setConnectTimeout(5000);//设置连接超时时间
@@ -105,8 +193,8 @@ public class SplashActivity extends Activity {
 						String result = StreamTools.readStream(is);
 						JSONObject jsonObj = new JSONObject(result);
 						String version = (String) jsonObj.get("version");
-						String description = (String) jsonObj.get("description");
-						String path = jsonObj.getString("path");
+						description = (String) jsonObj.get("description");
+						path = jsonObj.getString("path");
 						Log.i(TAG,"result:"+result);
 						Log.i(TAG,"version:"+version);
 						Log.i(TAG,"description:"+description);
@@ -114,10 +202,16 @@ public class SplashActivity extends Activity {
 						//判断 服务器的版本号 和 客户端的版本号是否一致。
 						if(getVersion().equals(version)){
 							Log.i(TAG,"版本号相同，进入主界面");
+							try {
+								Thread.sleep(2000);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+							loadMainUI();
 						}else{
 							Log.i(TAG,"版本号不相同，弹出更新提醒对话框");
+							msg.what = SHOW_UPDATE_DIALOG;
 						}
-						
 					}else{
 						//状态码不正确。
 						msg.what = SERVER_CODE_ERROR;
@@ -135,6 +229,15 @@ public class SplashActivity extends Activity {
 					e.printStackTrace();
 					msg.what = JSON_ERROR;
 				}finally{
+					long endTime = System.currentTimeMillis();
+					long dTime = endTime - startTime;
+					if(dTime<2000){
+						try {
+							Thread.sleep(2000-dTime);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
 					handler.sendMessage(msg);
 				}
     		};
