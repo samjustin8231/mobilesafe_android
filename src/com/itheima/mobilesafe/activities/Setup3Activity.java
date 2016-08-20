@@ -1,8 +1,5 @@
 package com.itheima.mobilesafe.activities;
 
-import com.itheima.mobilesafe.R;
-
-import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
@@ -10,6 +7,8 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
+
+import com.itheima.mobilesafe.R;
 
 public class Setup3Activity extends BaseSetupActivity {
 	private EditText et_setup3_phone;
@@ -44,5 +43,22 @@ public class Setup3Activity extends BaseSetupActivity {
 	@Override
 	protected void showPre() {
 		pre(null);
+	}
+	/**
+	 * 选择联系人
+	 * @param view
+	 */
+	public void selectContact(View view){
+		Intent intent = new Intent(this,SelectContactActivity.class);
+		startActivityForResult(intent, 0);
+	}
+	
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		if(data!=null){
+			String phone = data.getStringExtra("phone");
+			et_setup3_phone.setText(phone);
+		}
+		super.onActivityResult(requestCode, resultCode, data);
 	}
 }

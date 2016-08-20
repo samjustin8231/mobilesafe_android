@@ -1,6 +1,7 @@
 package com.itheima.mobilesafe.activities;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -51,24 +52,28 @@ public class SplashActivity extends Activity {
 	private RelativeLayout rl_splash_root;
 	private String description;
 	private String path;
-	//创建一个消息处理器
-	private Handler handler = new Handler(){
+	// 创建一个消息处理器
+	private Handler handler = new Handler() {
 		public void handleMessage(android.os.Message msg) {
 			switch (msg.what) {
 			case SERVER_CODE_ERROR:
-				Toast.makeText(getApplicationContext(), "获取更新信息失败，错误码："+SERVER_CODE_ERROR, 1).show();
+				Toast.makeText(getApplicationContext(),
+						"获取更新信息失败，错误码：" + SERVER_CODE_ERROR, 1).show();
 				loadMainUI();
 				break;
 			case URL_ERROR:
-				Toast.makeText(getApplicationContext(), "获取更新信息失败，错误码："+URL_ERROR, 1).show();
+				Toast.makeText(getApplicationContext(),
+						"获取更新信息失败，错误码：" + URL_ERROR, 1).show();
 				loadMainUI();
 				break;
 			case NETWORK_ERROR:
-				Toast.makeText(getApplicationContext(), "您的网络不给力啊，再试下下哈哈", 1).show();
+				Toast.makeText(getApplicationContext(), "您的网络不给力啊，再试下下哈哈", 1)
+						.show();
 				loadMainUI();
 				break;
 			case JSON_ERROR:
-				Toast.makeText(getApplicationContext(), "获取更新信息失败，错误码："+JSON_ERROR, 1).show();
+				Toast.makeText(getApplicationContext(),
+						"获取更新信息失败，错误码：" + JSON_ERROR, 1).show();
 				loadMainUI();
 				break;
 			case SHOW_UPDATE_DIALOG:
@@ -78,28 +83,57 @@ public class SplashActivity extends Activity {
 		};
 	};
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_splash);
-        tv_splash_version = (TextView) findViewById(R.id.tv_splash_version);
-        rl_splash_root = (RelativeLayout) findViewById(R.id.rl_splash_root);
-        tv_splash_progress = (TextView) findViewById(R.id.tv_splash_progress);
-        String version = getVersion();
-        tv_splash_version.setText("版本号:"+version);
-        //播放一个动画效果。
-        playAnimation();
-        
-        //连接服务器检查更新信息
-        checkVersion();
-        
-    }
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_splash);
+		tv_splash_version = (TextView) findViewById(R.id.tv_splash_version);
+		rl_splash_root = (RelativeLayout) findViewById(R.id.rl_splash_root);
+		tv_splash_progress = (TextView) findViewById(R.id.tv_splash_progress);
+		String version = getVersion();
+		tv_splash_version.setText("版本号:" + version);
+		// 播放一个动画效果。
+		playAnimation();
 
-    /**
-     * 显示更新提醒对话框
-     */
-    protected void showUpdateDialog() {
-		AlertDialog.Builder  builder = new Builder(this);
+		// 连接服务器检查更新信息
+		checkVersion();
+
+		// 在应用程序打开的splash界面里面 完成 数据库文件的初始化。
+		copyDB();
+
+	}
+
+	/**
+	 * 初始化号码归属地的数据库
+	 */
+	private void copyDB() {
+		try {
+			File file = new File(getFilesDir(), "address.db");
+			if (file.exists() && file.length() > 0) {
+				Log.i(TAG, "数据库已经存在无需拷贝");
+			} else {
+				Log.i(TAG, "拷贝号码归属地的数据库");
+				InputStream is = getAssets().open("address.db");
+
+				FileOutputStream fos = new FileOutputStream(file);
+				int len = 0;
+				byte[] buffer = new byte[1024];
+				while ((len = is.read(buffer)) != -1) {
+					fos.write(buffer, 0, len);
+				}
+				fos.close();
+				is.close();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 显示更新提醒对话框
+	 */
+	protected void showUpdateDialog() {
+		AlertDialog.Builder builder = new Builder(this);
 		builder.setOnCancelListener(new OnCancelListener() {
 			@Override
 			public void onCancel(DialogInterface dialog) {
@@ -111,48 +145,56 @@ public class SplashActivity extends Activity {
 		builder.setPositiveButton("立刻升级", new OnClickListener() {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
-				//判断sd卡是否存在  
-				//下载apk，替换安装。
-				 FinalHttp fh = new FinalHttp();  
-				    //调用download方法开始下载
-				    HttpHandler handler = fh.download(path, Environment.getExternalStorageDirectory().getAbsolutePath()+"/xx.apk", false, new AjaxCallBack<File>() {
-						@Override
-						public void onLoading(long count, long current) {
-							super.onLoading(count, current);
-							int progress = (int) (current*100/count);
-							tv_splash_progress.setText(("下载进度："+progress+"%"));
-						}
+				// 判断sd卡是否存在
+				// 下载apk，替换安装。
+				FinalHttp fh = new FinalHttp();
+				// 调用download方法开始下载
+				HttpHandler handler = fh.download(path, Environment
+						.getExternalStorageDirectory().getAbsolutePath()
+						+ "/xx.apk", false, new AjaxCallBack<File>() {
+					@Override
+					public void onLoading(long count, long current) {
+						super.onLoading(count, current);
+						int progress = (int) (current * 100 / count);
+						tv_splash_progress.setText(("下载进度：" + progress + "%"));
+					}
 
-						@Override
-						public void onSuccess(File t) {
-							super.onSuccess(t);
-							Toast.makeText(getApplicationContext(), "下载成功，替换安装", 0).show();
-//							   <action android:name="android.intent.action.VIEW" />
-//				                <category android:name="android.intent.category.DEFAULT" />
-//				                <data android:scheme="content" />
-//				                <data android:scheme="file" />
-//				                <data android:mimeType="application/vnd.android.package-archive" />
-							Intent intent = new Intent();
-							intent.setAction("android.intent.action.VIEW");
-							intent.addCategory("android.intent.category.DEFAULT");
-//							intent.setType("application/vnd.android.package-archive");
-//							intent.setData(Uri.fromFile(t));
-							intent.setDataAndType(Uri.fromFile(t), "application/vnd.android.package-archive");
-							startActivity(intent);
-						}
+					@Override
+					public void onSuccess(File t) {
+						super.onSuccess(t);
+						Toast.makeText(getApplicationContext(), "下载成功，替换安装", 0)
+								.show();
+						// <action android:name="android.intent.action.VIEW" />
+						// <category
+						// android:name="android.intent.category.DEFAULT" />
+						// <data android:scheme="content" />
+						// <data android:scheme="file" />
+						// <data
+						// android:mimeType="application/vnd.android.package-archive"
+						// />
+						Intent intent = new Intent();
+						intent.setAction("android.intent.action.VIEW");
+						intent.addCategory("android.intent.category.DEFAULT");
+						// intent.setType("application/vnd.android.package-archive");
+						// intent.setData(Uri.fromFile(t));
+						intent.setDataAndType(Uri.fromFile(t),
+								"application/vnd.android.package-archive");
+						startActivity(intent);
+					}
 
-						@Override
-						public void onFailure(Throwable t, int errorNo,
-								String strMsg) {
-							super.onFailure(t, errorNo, strMsg);
-							Toast.makeText(getApplicationContext(), "下载失败", 0).show();
-							loadMainUI();
-						}
-					});
+					@Override
+					public void onFailure(Throwable t, int errorNo,
+							String strMsg) {
+						super.onFailure(t, errorNo, strMsg);
+						Toast.makeText(getApplicationContext(), "下载失败", 0)
+								.show();
+						loadMainUI();
+					}
+				});
 			}
 		});
 		builder.setNegativeButton("下次再说", new OnClickListener() {
-			
+
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
 				loadMainUI();
@@ -162,86 +204,88 @@ public class SplashActivity extends Activity {
 	}
 
 	/**
-     * 进入主界面
-     */
-    protected void loadMainUI() {
-		Intent intent = new Intent(this,HomeActivity.class);
+	 * 进入主界面
+	 */
+	protected void loadMainUI() {
+		Intent intent = new Intent(this, HomeActivity.class);
 		startActivity(intent);
-		finish();//关闭掉splash界面。
+		finish();// 关闭掉splash界面。
 	}
 
 	/**
-     * 连接服务器检查更新信息
-     * 必须要在子线程实现。
-     */
-    private void checkVersion() {
-    	new Thread(){
-    		public void run() {
-    			long startTime = System.currentTimeMillis();
-    			Message msg  = Message.obtain();
-    			
-    			//127.0.0.1 本地回环地址。 localhost
-    			try {
-    				URL url = new URL(getResources().getString(R.string.serverurl)); //http: https:// ftp:// svn://
-					HttpURLConnection conn =  (HttpURLConnection) url.openConnection();
-					conn.setRequestMethod("GET");//区分大小写
-					conn.setConnectTimeout(2000);//设置连接超时时间
-					//conn.setReadTimeout(5000);  读取超时时间。
-					int code = conn.getResponseCode();//获取服务器状态码
-					if(code == 200){//请求成功
-						InputStream is = conn.getInputStream();//json 字符串。
+	 * 连接服务器检查更新信息 必须要在子线程实现。
+	 */
+	private void checkVersion() {
+		new Thread() {
+			public void run() {
+				long startTime = System.currentTimeMillis();
+				Message msg = Message.obtain();
+
+				// 127.0.0.1 本地回环地址。 localhost
+				try {
+					URL url = new URL(getResources().getString(
+							R.string.serverurl)); // http: https:// ftp://
+													// svn://
+					HttpURLConnection conn = (HttpURLConnection) url
+							.openConnection();
+					conn.setRequestMethod("GET");// 区分大小写
+					conn.setConnectTimeout(2000);// 设置连接超时时间
+					// conn.setReadTimeout(5000); 读取超时时间。
+					int code = conn.getResponseCode();// 获取服务器状态码
+					if (code == 200) {// 请求成功
+						InputStream is = conn.getInputStream();// json 字符串。
 						String result = StreamTools.readStream(is);
 						JSONObject jsonObj = new JSONObject(result);
 						String version = (String) jsonObj.get("version");
 						description = (String) jsonObj.get("description");
 						path = jsonObj.getString("path");
-						Log.i(TAG,"result:"+result);
-						Log.i(TAG,"version:"+version);
-						Log.i(TAG,"description:"+description);
-						Log.i(TAG,"path:"+path);
-						//判断 服务器的版本号 和 客户端的版本号是否一致。
-						if(getVersion().equals(version)){
-							Log.i(TAG,"版本号相同，进入主界面");
+						Log.i(TAG, "result:" + result);
+						Log.i(TAG, "version:" + version);
+						Log.i(TAG, "description:" + description);
+						Log.i(TAG, "path:" + path);
+						// 判断 服务器的版本号 和 客户端的版本号是否一致。
+						if (getVersion().equals(version)) {
+							Log.i(TAG, "版本号相同，进入主界面");
 							try {
 								Thread.sleep(2000);
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
 							loadMainUI();
-						}else{
-							Log.i(TAG,"版本号不相同，弹出更新提醒对话框");
+						} else {
+							Log.i(TAG, "版本号不相同，弹出更新提醒对话框");
 							msg.what = SHOW_UPDATE_DIALOG;
 						}
-					}else{
-						//状态码不正确。
+					} else {
+						// 状态码不正确。
 						msg.what = SERVER_CODE_ERROR;
 					}
-				} catch (MalformedURLException e) {//路径错误（协议错误了）//自定义一些错误码。
+				} catch (MalformedURLException e) {// 路径错误（协议错误了）//自定义一些错误码。
 					e.printStackTrace();
 					msg.what = URL_ERROR;
-				} catch (NotFoundException e) {//域名或者 路径找不到
+				} catch (NotFoundException e) {// 域名或者 路径找不到
 					e.printStackTrace();
 					msg.what = URL_ERROR;
-				} catch (IOException e) { //访问网络出错
+				} catch (IOException e) { // 访问网络出错
 					e.printStackTrace();
 					msg.what = NETWORK_ERROR;
-				} catch (JSONException e) { //解析json文件出错了。
+				} catch (JSONException e) { // 解析json文件出错了。
 					e.printStackTrace();
 					msg.what = JSON_ERROR;
-				}finally{
+				} finally {
 					long endTime = System.currentTimeMillis();
 					long dTime = endTime - startTime;
-					if(dTime<2000){
+					if (dTime < 2000) {
 						try {
-							Thread.sleep(2000-dTime);
+							Thread.sleep(2000 - dTime);
 						} catch (InterruptedException e) {
 							e.printStackTrace();
 						}
 					}
 					handler.sendMessage(msg);
 				}
-    		};
-    	}.start();
+			};
+		}.start();
 	}
 
 	private void playAnimation() {
@@ -251,20 +295,21 @@ public class SplashActivity extends Activity {
 	}
 
 	/**
-     * 获取应用程序的版本号信息
-     * @return 应用程序的版本号
-     */
+	 * 获取应用程序的版本号信息
+	 * 
+	 * @return 应用程序的版本号
+	 */
 	private String getVersion() {
-		//获取一个系统的包管理器。
-        PackageManager pm = getPackageManager();
-        try {
-        	//清单文件 manifest.xml文件的所有的信息
-        	PackageInfo  packInfo  = pm.getPackageInfo(getPackageName(), 0);
-        	String version = packInfo.versionName;
-        	return version;
+		// 获取一个系统的包管理器。
+		PackageManager pm = getPackageManager();
+		try {
+			// 清单文件 manifest.xml文件的所有的信息
+			PackageInfo packInfo = pm.getPackageInfo(getPackageName(), 0);
+			String version = packInfo.versionName;
+			return version;
 		} catch (NameNotFoundException e) {
 			e.printStackTrace();
-			//can't reach 不可能发生的异常
+			// can't reach 不可能发生的异常
 			return "";
 		}
 	}
