@@ -22,7 +22,7 @@ public class SplashActivity extends Activity {
         tv_splash_version = (TextView) findViewById(R.id.tv_splash_version);
         rl_splash_root = (RelativeLayout) findViewById(R.id.rl_splash_root);
         String version = getVersion();
-        tv_splash_version.setText("版本号："+version);
+        tv_splash_version.setText("版本号:"+version);
         //播放一个动画效果。
         playAnimation();
         
